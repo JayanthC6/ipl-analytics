@@ -1,100 +1,151 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IPL Match Predictor</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Segoe UI', sans-serif; background: #0f0f1a; color: #fff; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
-        .container { background: #1a1a2e; padding: 40px; border-radius: 16px; width: 480px; box-shadow: 0 8px 32px rgba(0,0,0,0.4); }
-        h1 { text-align: center; color: #f0a500; margin-bottom: 8px; font-size: 24px; }
-        p.subtitle { text-align: center; color: #888; margin-bottom: 30px; font-size: 13px; }
-        .form-group { margin-bottom: 16px; }
-        label { display: block; margin-bottom: 6px; color: #ccc; font-size: 13px; }
-        select { width: 100%; padding: 10px 14px; background: #0f0f1a; border: 1px solid #333; border-radius: 8px; color: #fff; font-size: 14px; outline: none; }
-        select:focus { border-color: #f0a500; }
-        button { width: 100%; padding: 14px; background: #f0a500; border: none; border-radius: 8px; color: #0f0f1a; font-size: 16px; font-weight: 700; cursor: pointer; margin-top: 10px; }
-        button:hover { background: #d4920a; }
-        .result { margin-top: 24px; padding: 20px; background: #0f0f1a; border-radius: 10px; text-align: center; display: none; }
-        .result h2 { color: #f0a500; font-size: 20px; margin-bottom: 6px; }
-        .result p { color: #aaa; font-size: 14px; }
-        .error { color: #ff4d4d; margin-top: 10px; text-align: center; font-size: 13px; }
-    </style>
-</head>
-<body>
-<div class="container">
-    <h1>🏏 IPL Match Predictor</h1>
-    <p class="subtitle">Predict match outcomes using machine learning</p>
-
-    <div class="form-group">
-        <label>Team 1</label>
-        <select id="team1">
-            {% for team in teams %}<option value="{{ team }}">{{ team }}</option>{% endfor %}
-        </select>
-    </div>
-    <div class="form-group">
-        <label>Team 2</label>
-        <select id="team2">
-            {% for team in teams %}<option value="{{ team }}">{{ team }}</option>{% endfor %}
-        </select>
-    </div>
-    <div class="form-group">
-        <label>Venue</label>
-        <select id="venue">
-            {% for venue in venues %}<option value="{{ venue }}">{{ venue }}</option>{% endfor %}
-        </select>
-    </div>
-    <div class="form-group">
-        <label>Toss Winner</label>
-        <select id="toss_winner">
-            {% for team in teams %}<option value="{{ team }}">{{ team }}</option>{% endfor %}
-        </select>
-    </div>
-    <div class="form-group">
-        <label>Toss Decision</label>
-        <select id="toss_decision">
-            <option value="bat">Bat</option>
-            <option value="field">Field</option>
-        </select>
+{% extends "base.html" %}
+{% block content %}
+<div class="page">
+    <div class="page-header">
+        <h1>🏏 IPL Analytics Dashboard</h1>
+        <p>17 seasons · 1,090 matches · 260,000+ ball-by-ball records</p>
     </div>
 
-    <button onclick="predict()">Predict Winner</button>
-    <div class="result" id="result">
-        <h2 id="winner"></h2>
-        <p id="confidence"></p>
+    <!-- Stat Cards -->
+    <div class="cards-row">
+        <div class="card">
+            <div class="card-label">Total Matches</div>
+            <div class="card-value">{{ stats.total_matches }}</div>
+            <div class="card-sub">Across 17 seasons</div>
+        </div>
+        <div class="card">
+            <div class="card-label">Total Teams</div>
+            <div class="card-value">{{ stats.total_teams }}</div>
+            <div class="card-sub">Ever participated</div>
+        </div>
+        <div class="card">
+            <div class="card-label">Most Wins</div>
+            <div class="card-value" style="font-size:18px;">{{ stats.most_wins_team }}</div>
+            <div class="card-sub">{{ stats.most_wins_count }} wins total</div>
+        </div>
+        <div class="card">
+            <div class="card-label">Field First Wins</div>
+            <div class="card-value">53.86%</div>
+            <div class="card-sub">vs 45.38% batting first</div>
+        </div>
     </div>
-    <div class="error" id="error"></div>
+
+    <!-- Charts Row 1 -->
+    <div class="charts-row">
+        <div class="chart-box full">
+            <div class="chart-title">Matches Per Season</div>
+            <canvas id="seasonChart" height="80"></canvas>
+        </div>
+    </div>
+
+    <!-- Charts Row 2 -->
+    <div class="charts-row">
+        <div class="chart-box">
+            <div class="chart-title">Top 10 Teams by Wins</div>
+            <canvas id="teamsChart"></canvas>
+        </div>
+        <div class="chart-box">
+            <div class="chart-title">Toss Decision Impact</div>
+            <canvas id="tossChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Top Venues Table -->
+    <div class="table-box">
+        <table>
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Venue</th>
+                    <th>Matches Hosted</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for v in venues %}
+                <tr>
+                    <td class="rank">{{ loop.index }}</td>
+                    <td>{{ v.venue }}</td>
+                    <td><span class="badge badge-gold">{{ v.matches_hosted }}</span></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 </div>
 
 <script>
-async function predict() {
-    const payload = {
-        team1: document.getElementById('team1').value,
-        team2: document.getElementById('team2').value,
-        venue: document.getElementById('venue').value,
-        toss_winner: document.getElementById('toss_winner').value,
-        toss_decision: document.getElementById('toss_decision').value
-    };
+const seasons = {{ seasons | tojson }};
+const seasonCounts = {{ season_counts | tojson }};
+const teamNames = {{ team_names | tojson }};
+const teamWins = {{ team_wins | tojson }};
 
-    const res = await fetch('/predict', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-    });
-
-    const data = await res.json();
-    document.getElementById('error').innerText = '';
-
-    if (data.error) {
-        document.getElementById('error').innerText = data.error;
-        document.getElementById('result').style.display = 'none';
-    } else {
-        document.getElementById('winner').innerText = '🏆 ' + data.winner + ' wins!';
-        document.getElementById('confidence').innerText = 'Model confidence: ' + data.confidence + '%';
-        document.getElementById('result').style.display = 'block';
+// Season Chart
+new Chart(document.getElementById('seasonChart'), {
+    type: 'bar',
+    data: {
+        labels: seasons,
+        datasets: [{
+            label: 'Matches',
+            data: seasonCounts,
+            backgroundColor: 'rgba(240,165,0,0.7)',
+            borderColor: '#f0a500',
+            borderWidth: 1,
+            borderRadius: 4
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+            x: { ticks: { color: '#888' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+            y: { ticks: { color: '#888' }, grid: { color: 'rgba(255,255,255,0.05)' } }
+        }
     }
-}
+});
+
+// Teams Chart
+new Chart(document.getElementById('teamsChart'), {
+    type: 'bar',
+    data: {
+        labels: teamNames,
+        datasets: [{
+            data: teamWins,
+            backgroundColor: 'rgba(232,93,4,0.7)',
+            borderColor: '#e85d04',
+            borderWidth: 1,
+            borderRadius: 4
+        }]
+    },
+    options: {
+        indexAxis: 'y',
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+            x: { ticks: { color: '#888' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+            y: { ticks: { color: '#ccc', font: { size: 11 } }, grid: { display: false } }
+        }
+    }
+});
+
+// Toss Chart
+new Chart(document.getElementById('tossChart'), {
+    type: 'doughnut',
+    data: {
+        labels: ['Field First (53.86%)', 'Bat First (45.38%)'],
+        datasets: [{
+            data: [53.86, 45.38],
+            backgroundColor: ['rgba(240,165,0,0.8)', 'rgba(232,93,4,0.8)'],
+            borderColor: ['#f0a500', '#e85d04'],
+            borderWidth: 2
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: { position: 'bottom', labels: { color: '#888', padding: 16, font: { size: 12 } } }
+        },
+        cutout: '65%'
+    }
+});
 </script>
-</body>
-</html>
+{% endblock %}

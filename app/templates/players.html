@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page">
+    <div class="page-header">
+        <h1>👤 Player Stats</h1>
+        <p>Top batters and bowlers across all IPL seasons</p>
+    </div>
+
+    <div class="charts-row">
+        <div class="chart-box">
+            <div class="chart-title">Top 15 Batters by Total Runs</div>
+            <canvas id="battersChart"></canvas>
+        </div>
+        <div class="chart-box">
+            <div class="chart-title">Top 15 Bowlers by Total Wickets</div>
+            <canvas id="bowlersChart"></canvas>
+        </div>
+    </div>
+
+    <div class="charts-row">
+        <div class="table-box" style="flex:1">
+            <table>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Batter</th>
+                        <th>Runs</th>
+                        <th>Matches</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for b in batters %}
+                    <tr>
+                        <td class="rank">{{ loop.index }}</td>
+                        <td>{{ b.name }}</td>
+                        <td><span class="badge badge-gold">{{ b.runs }}</span></td>
+                        <td>{{ b.matches }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="table-box" style="flex:1">
+            <table>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Bowler</th>
+                        <th>Wickets</th>
+                        <th>Matches</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for b in bowlers %}
+                    <tr>
+                        <td class="rank">{{ loop.index }}</td>
+                        <td>{{ b.name }}</td>
+                        <td><span class="badge badge-green">{{ b.wickets }}</span></td>
+                        <td>{{ b.matches }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+const batters = {{ batters | tojson }};
+const bowlers = {{ bowlers | tojson }};
+
+new Chart(document.getElementById('battersChart'), {
+    type: 'bar',
+    data: {
+        labels: batters.map(b => b.name),
+        datasets: [{
+            data: batters.map(b => b.runs),
+            backgroundColor: 'rgba(240,165,0,0.75)',
+            borderRadius: 4
+        }]
+    },
+    options: {
+        indexAxis: 'y',
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+            x: { ticks: { color: '#888' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+            y: { ticks: { color: '#ccc', font: { size: 11 } }, grid: { display: false } }
+        }
+    }
+});
+
+new Chart(document.getElementById('bowlersChart'), {
+    type: 'bar',
+    data: {
+        labels: bowlers.map(b => b.name),
+        datasets: [{
+            data: bowlers.map(b => b.wickets),
+            backgroundColor: 'rgba(0,200,150,0.75)',
+            borderRadius: 4
+        }]
+    },
+    options: {
+        indexAxis: 'y',
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+            x: { ticks: { color: '#888' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+            y: { ticks: { color: '#ccc', font: { size: 11 } }, grid: { display: false } }
+        }
+    }
+});
+</script>
+{% endblock %}

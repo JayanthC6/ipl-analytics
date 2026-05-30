@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page">
+    <div class="page-header">
+        <h1>🔮 Match Predictor</h1>
+        <p>Random Forest model trained on 17 seasons · 1,090 matches</p>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;max-width:900px">
+        <div>
+            <div class="card" style="margin-bottom:20px">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+                    <div class="select-group">
+                        <label>Team 1</label>
+                        <select id="team1">
+                            {% for team in teams %}<option value="{{ team }}">{{ team }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="select-group">
+                        <label>Team 2</label>
+                        <select id="team2">
+                            {% for team in teams %}<option value="{{ team }}">{{ team }}</option>{% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="select-group" style="margin-bottom:14px">
+                    <label>Venue</label>
+                    <select id="venue" style="width:100%">
+                        {% for venue in venues %}<option value="{{ venue }}">{{ venue }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px">
+                    <div class="select-group">
+                        <label>Toss Winner</label>
+                        <select id="toss_winner">
+                            {% for team in teams %}<option value="{{ team }}">{{ team }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="select-group">
+                        <label>Toss Decision</label>
+                        <select id="toss_decision">
+                            <option value="bat">Bat First</option>
+                            <option value="field">Field First</option>
+                        </select>
+                    </div>
+                </div>
+                <button class="btn" style="width:100%;padding:14px;font-size:15px" onclick="predict()">⚡ Predict Winner</button>
+            </div>
+
+            <div class="card" style="font-size:12px;color:var(--muted);line-height:1.8">
+                <div style="font-weight:700;color:var(--text);margin-bottom:8px">Model Info</div>
+                <div>Algorithm: Random Forest Classifier</div>
+                <div>Training data: 1,090 IPL matches</div>
+                <div>Seasons: 2007/08 – 2024</div>
+                <div>Accuracy: 54.13%</div>
+                <div>Features: Venue, Teams, Toss</div>
+            </div>
+        </div>
+
+        <div>
+            <div class="card" id="resultCard" style="display:none;text-align:center;padding:40px 24px">
+                <div style="font-size:48px;margin-bottom:16px">🏆</div>
+                <div style="font-size:11px;color:var(--accent);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Predicted Winner</div>
+                <div style="font-size:28px;font-weight:800;margin-bottom:24px" id="winnerName"></div>
+                <div style="margin-bottom:8px;display:flex;justify-content:space-between;font-size:12px;color:var(--muted)">
+                    <span>Model Confidence</span>
+                    <span id="confText" style="color:var(--accent);font-weight:700"></span>
+                </div>
+                <div style="background:rgba(255,255,255,0.08);border-radius:10px;height:10px;overflow:hidden">
+                    <div id="confBar" style="height:100%;background:linear-gradient(90deg,#f0a500,#e85d04);border-radius:10px;width:0%;transition:width 0.8s ease"></div>
+                </div>
+                <div style="margin-top:24px;font-size:11px;color:var(--muted)">Based on venue, team history & toss factors</div>
+            </div>
+
+            <div class="card" id="placeholderCard" style="text-align:center;padding:60px 24px;color:var(--muted)">
+                <div style="font-size:48px;margin-bottom:16px">🏏</div>
+                <div style="font-size:14px">Select teams and click Predict to see the result</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+async function predict() {
+    const payload = {
+        team1: document.getElementById('team1').value,
+        team2: document.getElementById('team2').value,
+        venue: document.getElementById('venue').value,
+        toss_winner: document.getElementById('toss_winner').value,
+        toss_decision: document.getElementById('toss_decision').value
+    };
+    const res = await fetch('/predict', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (data.error) { alert(data.error); return; }
+    document.getElementById('winnerName').innerText = data.winner;
+    document.getElementById('confText').innerText = data.confidence + '%';
+    document.getElementById('placeholderCard').style.display = 'none';
+    document.getElementById('resultCard').style.display = 'block';
+    setTimeout(() => {
+        document.getElementById('confBar').style.width = data.confidence + '%';
+    }, 100);
+}
+</script>
+{% endblock %}

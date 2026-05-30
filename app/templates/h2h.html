@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page">
+    <div class="page-header">
+        <h1>⚔️ Head-to-Head</h1>
+        <p>Compare any two teams across all IPL seasons</p>
+    </div>
+
+    <div class="controls">
+        <div class="select-group">
+            <label>Team 1</label>
+            <select id="team1">
+                {% for team in teams %}
+                <option value="{{ team }}">{{ team }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="select-group">
+            <label>Team 2</label>
+            <select id="team2">
+                {% for team in teams %}
+                <option value="{{ team }}">{{ team }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <button class="btn" onclick="loadH2H()">Compare</button>
+    </div>
+
+    <div id="h2hContent" style="display:none">
+        <div class="cards-row" style="grid-template-columns: repeat(3,1fr)">
+            <div class="card" style="text-align:center">
+                <div class="card-label" id="t1label">Team 1</div>
+                <div class="card-value" id="t1wins">-</div>
+                <div class="card-sub">Wins</div>
+            </div>
+            <div class="card" style="text-align:center">
+                <div class="card-label">Total Matches</div>
+                <div class="card-value" id="totalH2H">-</div>
+                <div class="card-sub">Head-to-Head</div>
+            </div>
+            <div class="card" style="text-align:center">
+                <div class="card-label" id="t2label">Team 2</div>
+                <div class="card-value" id="t2wins">-</div>
+                <div class="card-sub">Wins</div>
+            </div>
+        </div>
+
+        <div class="chart-box" style="margin-bottom:24px">
+            <div class="chart-title">Win Distribution</div>
+            <canvas id="h2hChart" height="80"></canvas>
+        </div>
+
+        <div class="table-box">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Venue</th>
+                        <th>Winner</th>
+                        <th>Margin</th>
+                    </tr>
+                </thead>
+                <tbody id="h2hTable"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+let h2hChartInstance = null;
+
+async function loadH2H() {
+    const t1 = document.getElementById('team1').value;
+    const t2 = document.getElementById('team2').value;
+    if (t1 === t2) { alert('Please select two different teams'); return; }
+
+    const res = await fetch(`/api/h2h?team1=${encodeURIComponent(t1)}&team2=${encodeURIComponent(t2)}`);
+    const data = await res.json();
+
+    document.getElementById('t1label').innerText = t1;
+    document.getElementById('t2label').innerText = t2;
+    document.getElementById('t1wins').innerText = data.t1_wins;
+    document.getElementById('t2wins').innerText = data.t2_wins;
+    document.getElementById('totalH2H').innerText = data.total;
+
+    if (h2hChartInstance) h2hChartInstance.destroy();
+    h2hChartInstance = new Chart(document.getElementById('h2hChart'), {
+        type: 'bar',
+        data: {
+            labels: [t1, t2],
+            datasets: [{
+                data: [data.t1_wins, data.t2_wins],
+                backgroundColor: ['rgba(240,165,0,0.8)', 'rgba(232,93,4,0.8)'],
+                borderRadius: 6
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { ticks: { color: '#ccc' }, grid: { display: false } },
+                y: { ticks: { color: '#888' }, grid: { color: 'rgba(255,255,255,0.05)' } }
+            }
+        }
+    });
+
+    const tbody = document.getElementById('h2hTable');
+    tbody.innerHTML = data.matches.map(m => `
+        <tr>
+            <td>${m.date}</td>
+            <td>${m.venue}</td>
+            <td><span class="badge badge-gold">${m.winner}</span></td>
+            <td>${m.margin}</td>
+        </tr>
+    `).join('');
+
+    document.getElementById('h2hContent').style.display = 'block';
+}
+</script>
+{% endblock %}
