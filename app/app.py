@@ -159,5 +159,20 @@ def predict():
     confidence = round(max(probability) * 100, 2)
     return jsonify({'winner': winner, 'confidence': confidence})
 
+from auction_engine import ask as auction_ask
+
+@app.route('/auction')
+def auction_page():
+    return render_template('auction.html', active='auction', title='Auction Intelligence')
+
+@app.route('/api/auction-query', methods=['POST'])
+def auction_query():
+    data = request.get_json()
+    question = data.get('question', '')
+    if not question:
+        return jsonify({'success': False, 'error': 'No question provided'})
+    result = auction_ask(question)
+    return jsonify(result)
+
 if __name__ == '__main__':
     app.run(debug=True)

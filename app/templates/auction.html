@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page">
+    <div class="page-header">
+        <h1>🤖 Auction Intelligence</h1>
+        <p>Ask anything about IPL players in plain English — powered by AI + your MySQL database</p>
+    </div>
+
+    <!-- Example Questions -->
+    <div style="margin-bottom:24px">
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;font-weight:700">Try asking:</div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px" id="examples">
+            <button class="example-btn" onclick="askExample(this)">Who are the top 5 batters available under ₹10 crore?</button>
+            <button class="example-btn" onclick="askExample(this)">Which bowlers have taken more than 100 wickets?</button>
+            <button class="example-btn" onclick="askExample(this)">Suggest players RCB should retain based on performance</button>
+            <button class="example-btn" onclick="askExample(this)">Who is the best value bowler under ₹5 crore?</button>
+            <button class="example-btn" onclick="askExample(this)">Which players have played more than 150 matches?</button>
+            <button class="example-btn" onclick="askExample(this)">Top 5 all rounders by runs and wickets combined</button>
+        </div>
+    </div>
+
+    <!-- Query Input -->
+    <div style="display:flex;gap:12px;margin-bottom:24px">
+        <input type="text" id="queryInput" placeholder="Ask anything about IPL players, auction prices, performance..."
+            style="flex:1;padding:14px 18px;background:var(--surface);border:1px solid var(--border);
+            border-radius:12px;color:var(--text);font-size:14px;outline:none;"
+            onkeydown="if(event.key==='Enter') runQuery()"
+            onfocus="this.style.borderColor='var(--accent)'"
+            onblur="this.style.borderColor='var(--border)'">
+        <button class="btn" onclick="runQuery()" style="padding:14px 28px;font-size:14px">
+            ⚡ Ask AI
+        </button>
+    </div>
+
+    <!-- Loading -->
+    <div id="loading" style="display:none;text-align:center;padding:40px;color:var(--muted)">
+        <div style="font-size:24px;margin-bottom:8px">🤔</div>
+        <div>Generating SQL and analyzing data...</div>
+    </div>
+
+    <!-- Result -->
+    <div id="result" style="display:none">
+
+        <!-- Insight Card -->
+        <div class="card" style="margin-bottom:20px;border-left:3px solid var(--accent)">
+            <div style="font-size:11px;color:var(--accent);font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">
+                🎯 AI Insight
+            </div>
+            <div id="insightText" style="font-size:15px;line-height:1.7;color:var(--text)"></div>
+        </div>
+
+        <!-- SQL Query Used -->
+        <div class="card" style="margin-bottom:20px;background:rgba(0,0,0,0.3)">
+            <div style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">
+                🔍 SQL Query Generated
+            </div>
+            <code id="sqlText" style="font-size:12px;color:#00c896;font-family:monospace;line-height:1.6;white-space:pre-wrap"></code>
+        </div>
+
+        <!-- Data Table -->
+        <div class="table-box">
+            <div style="padding:16px 16px 0;font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:0.5px">
+                📊 Data Results
+            </div>
+            <div style="overflow-x:auto">
+                <table id="dataTable" style="width:100%;border-collapse:collapse">
+                    <thead id="tableHead"></thead>
+                    <tbody id="tableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Error -->
+    <div id="errorBox" style="display:none;padding:16px;background:rgba(255,100,100,0.1);border:1px solid rgba(255,100,100,0.3);border-radius:12px;color:#ff6b6b;font-size:13px"></div>
+</div>
+
+<style>
+.example-btn {
+    padding: 8px 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    color: var(--muted);
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.example-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(240,165,0,0.05);
+}
+</style>
+
+<script>
+function askExample(btn) {
+    document.getElementById('queryInput').value = btn.innerText;
+    runQuery();
+}
+
+async function runQuery() {
+    const question = document.getElementById('queryInput').value.trim();
+    if (!question) return;
+
+    document.getElementById('loading').style.display = 'block';
+    document.getElementById('result').style.display = 'none';
+    document.getElementById('errorBox').style.display = 'none';
+
+    try {
+        const res = await fetch('/api/auction-query', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ question })
+        });
+        const data = await res.json();
+        document.getElementById('loading').style.display = 'none';
+
+        if (!data.success) {
+            document.getElementById('errorBox').innerText = 'Error: ' + data.error;
+            document.getElementById('errorBox').style.display = 'block';
+            return;
+        }
+
+        // Insight
+        document.getElementById('insightText').innerText = data.insight;
+
+        // SQL
+        document.getElementById('sqlText').innerText = data.sql;
+
+        // Table
+        const thead = document.getElementById('tableHead');
+        const tbody = document.getElementById('tableBody');
+        thead.innerHTML = '<tr>' + data.columns.map(c =>
+            `<th style="padding:12px 16px;background:var(--surface2);font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;text-align:left">${c}</th>`
+        ).join('') + '</tr>';
+
+        tbody.innerHTML = data.data.map((row, i) =>
+            '<tr>' + data.columns.map(c => {
+                let val = row[c];
+                if (c.includes('price') || c.includes('cr')) {
+                    val = '₹' + parseFloat(val).toFixed(1) + ' Cr';
+                }
+                return `<td style="padding:12px 16px;font-size:13px;border-top:1px solid var(--border)">${val ?? '-'}</td>`;
+            }).join('') + '</tr>'
+        ).join('');
+
+        document.getElementById('result').style.display = 'block';
+
+    } catch(e) {
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('errorBox').innerText = 'Network error: ' + e.message;
+        document.getElementById('errorBox').style.display = 'block';
+    }
+}
+</script>
+{% endblock %}

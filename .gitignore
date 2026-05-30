@@ -1,0 +1,8 @@
+.env
+__pycache__/
+*.pyc
+*.pkl
+data/raw/
+test_gemini.py
+venv/
+.ipynb_checkpoints/
