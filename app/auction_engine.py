@@ -31,7 +31,7 @@ TABLE: deliveries
 TABLE: player_auction
 - player_name (text), total_runs (float), matches (int)
 - avg_runs_per_match (float), role (text), auction_price_cr (float)
-- total_wickets (int), avg_wickets_per_match (float)
+- total_wickets (int), avg_wickets_per_match (float), is_active (int)
 
 IMPORTANT RULES:
 1. Always return ONLY a valid MySQL SELECT query, nothing else
@@ -39,16 +39,25 @@ IMPORTANT RULES:
 3. Use table aliases for clarity
 4. LIMIT results to 10 unless specified otherwise
 5. For price queries, use auction_price_cr from player_auction table
-6. For performance queries, use deliveries table
-7. Always use proper JOIN when combining tables
-8. CRITICAL: When counting wickets, ALWAYS filter with is_wicket = 1
-9. CRITICAL: Powerplay = overs 1-6, Middle overs = overs 7-15, Death overs = overs 16-20
-10. CRITICAL: For wickets by phase use:
-    SUM(CASE WHEN d.over BETWEEN 1 AND 6 AND d.is_wicket = 1 THEN 1 ELSE 0 END) AS powerplay_wickets
-    SUM(CASE WHEN d.over BETWEEN 7 AND 15 AND d.is_wicket = 1 THEN 1 ELSE 0 END) AS middle_overs_wickets
-    SUM(CASE WHEN d.over > 15 AND d.is_wicket = 1 THEN 1 ELSE 0 END) AS death_overs_wickets
-11. Never count runs as wickets or wickets as runs
-12. Always double check filters before returning query
+6. ALWAYS filter WHERE pa.is_active = 1 when querying player_auction table
+7. For wicket queries ALWAYS use: WHERE d.is_wicket = 1 AND d.dismissal_kind NOT IN ('run out','retired hurt','obstructing the field')
+8. For phase-wise bowling:
+   - Powerplay = overs 1-6: SUM(CASE WHEN d.over BETWEEN 1 AND 6 AND d.is_wicket = 1 THEN 1 ELSE 0 END)
+   - Middle overs = overs 7-15: SUM(CASE WHEN d.over BETWEEN 7 AND 15 AND d.is_wicket = 1 THEN 1 ELSE 0 END)
+   - Death overs = overs 16-20: SUM(CASE WHEN d.over > 15 AND d.is_wicket = 1 THEN 1 ELSE 0 END)
+9. STRICT MySQL GROUP BY RULE: Every column in SELECT must either be in GROUP BY or wrapped in an aggregate function (SUM, COUNT, MAX, MIN, AVG)
+10. Never select pa.total_runs, pa.total_wickets, pa.avg_runs_per_match directly when using GROUP BY — use MAX(pa.total_runs), MAX(pa.total_wickets) instead
+11. For retention queries use this exact pattern:
+    SELECT pa.player_name, MAX(pa.total_runs) as total_runs, MAX(pa.total_wickets) as total_wickets, MAX(pa.auction_price_cr) as price
+    FROM player_auction pa
+    JOIN deliveries d ON pa.player_name = d.batter OR pa.player_name = d.bowler
+    WHERE (d.batting_team = 'TEAM' OR d.bowling_team = 'TEAM')
+    AND pa.is_active = 1
+    GROUP BY pa.player_name
+    ORDER BY total_runs DESC
+    LIMIT 5
+12. For value queries (best player under X crore), always include performance stats alongside price
+13. Never count deliveries as wickets — only count rows where is_wicket = 1
 """
 
 def generate_sql(question: str) -> str:
