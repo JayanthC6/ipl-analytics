@@ -41,6 +41,14 @@ IMPORTANT RULES:
 5. For price queries, use auction_price_cr from player_auction table
 6. For performance queries, use deliveries table
 7. Always use proper JOIN when combining tables
+8. CRITICAL: When counting wickets, ALWAYS filter with is_wicket = 1
+9. CRITICAL: Powerplay = overs 1-6, Middle overs = overs 7-15, Death overs = overs 16-20
+10. CRITICAL: For wickets by phase use:
+    SUM(CASE WHEN d.over BETWEEN 1 AND 6 AND d.is_wicket = 1 THEN 1 ELSE 0 END) AS powerplay_wickets
+    SUM(CASE WHEN d.over BETWEEN 7 AND 15 AND d.is_wicket = 1 THEN 1 ELSE 0 END) AS middle_overs_wickets
+    SUM(CASE WHEN d.over > 15 AND d.is_wicket = 1 THEN 1 ELSE 0 END) AS death_overs_wickets
+11. Never count runs as wickets or wickets as runs
+12. Always double check filters before returning query
 """
 
 def generate_sql(question: str) -> str:
